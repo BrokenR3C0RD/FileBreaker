@@ -5,6 +5,7 @@ import MoveInstruction from "./Instructions/Move";
 import StringInstruction, { StringInstructionOptions } from "./Instructions/String";
 import { AddKey, ClassType, Dictionary, RemapToResolvable, Resolvable, Transform } from "./types";
 import Inflate from "./Transform/Inflate";
+import SubParserInstruction, { SubParserInstructionOptions } from "./Instructions/SubParser";
 
 export type InstructionInput<T extends {}> = { buffer: Buffer, offset: { value: number }, parser: Parser<T>, state: any };
 
@@ -71,7 +72,7 @@ class Parser<T extends {} = {}> {
     i32<TKey extends string>(key: TKey): Parser<AddKey<T, TKey, number>> {
         return this.addAction(key, IntegerInstruction, { bits: 32, signed: true }) as Parser<AddKey<T, TKey, number>>;
     }
-    string<TKey extends string>(key: TKey, options: RemapToResolvable<StringInstructionOptions>): Parser<AddKey<T, TKey, string>> {
+    string<TKey extends string>(key: TKey, options: RemapToResolvable<StringInstructionOptions> = {}): Parser<AddKey<T, TKey, string>> {
         return this.addAction(key, StringInstruction, options) as Parser<AddKey<T, TKey, string>>;
     }
     buffer<TKey extends string>(key: TKey, options: RemapToResolvable<BufferInstructionOptions>): Parser<AddKey<T, TKey, Buffer>> {
@@ -82,14 +83,18 @@ class Parser<T extends {} = {}> {
         return this.addAction(undefined, MoveInstruction, { offset }) as Parser<T>;
     }
 
-    parse(input: Buffer): T {
+    next<TKey extends string, TSub extends {}>(key: TKey, options: RemapToResolvable<SubParserInstructionOptions<TSub>>): Parser<AddKey<T, TKey, TSub>> {
+        return this.addAction(key, SubParserInstruction, options) as Parser<AddKey<T, TKey, TSub>>;
+    }
+
+    parse(input: Buffer, parentState?: any): T & { _offset: { value: number } } {
         const state: T = {} as T;
         let offset = { value: 0 };
 
         for (const instruction of this.instructions) {
             try {
                 if (instruction.key) {
-                    (state as any)[instruction.key] = instruction.run({ buffer: input, offset, parser: this, state });
+                    (state as any)[instruction.key] = instruction.run({ buffer: input, offset, parser: this, state: { ...parentState, ...state } });
                 } else {
                     instruction.run({ buffer: input, offset, parser: this, state })
                 }
@@ -98,7 +103,7 @@ class Parser<T extends {} = {}> {
             }
         }
 
-        return state;
+        return { ...state, _offset: offset };
     }
 }
 
