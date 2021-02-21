@@ -1,7 +1,8 @@
 import { StringTrimType } from "../../src/Instructions/String";
 import Parser from "../../src/Parser";
-import { readFileSync } from "fs";
+import { writeFileSync, readFileSync } from "fs";
 import { performance } from "perf_hooks";
+import { ExtractParserType } from "../../src/types";
 
 enum SB3FileType {
     Text = 0,
@@ -27,8 +28,33 @@ enum SB3DatIcon {
     GRP = 2
 }
 
+enum DataType {
+    Color = 0x03,
+    Int32 = 0x04,
+    Float64 = 0x05
+}
+
 const TextParser = new Parser()
     .string("text");
+
+const DataParser = new Parser()
+    .string("magic", { size: 8 })
+    .u16("data_type")
+    .u16("dim_count")
+    .array("dimensions", {
+        dimensions: (state) => [state["dim_count"]],
+        type: "u32"
+    })
+    .move(0x1C)
+    .array("data", {
+        dimensions: Parser.pick("dimensions"),
+        type: Parser.choose("data_type", {
+            [DataType.Color]: "u16",
+            [DataType.Int32]: "i32",
+            [DataType.Float64]: "f64"
+        })
+    });
+
 
 const SmileBASICFileParser = new Parser()
     .u16("version")
@@ -73,18 +99,18 @@ const SmileBASICFileParser = new Parser()
         size: 20,
         //assert: Parser.Transform.HashesMatch("sha1", Parser.range([0, -0x20]))
     })
-    .next("content", {
+    .next<"content", ExtractParserType<typeof DataParser> | ExtractParserType<typeof TextParser>>("content", {
         data: "content_raw",
         parser: Parser.choose("version", {
-            0x04: Parser.choose("file_type", {
+            0x04: Parser.choose<typeof TextParser | typeof DataParser>("file_type", {
+                [SB4FileType.Data]: DataParser,
                 [SB4FileType.Text]: TextParser,
-                // [SB4FileType.Data]: SB4DataParser,
                 // [SB4FileType.Project]: SB4ProjectParser,
                 // [SB4FileType.Meta]: SB4MetaParser
             })
-        }, Parser.choose("file_type", {
+        }, Parser.choose<typeof TextParser | typeof DataParser>("file_type", {
+            [SB4FileType.Data]: DataParser,
             [SB3FileType.Text]: TextParser,
-            // [SB3FileType.Data]: SB4DataParser,
             // [SB3FileType.Project]: SB4ProjectParser
         }))
     });
@@ -93,3 +119,5 @@ let start = performance.now()
 const file = SmileBASICFileParser.parse(readFileSync(__dirname + "/TMG_DOG"));
 let end = performance.now();
 console.log(`parse took ${end - start}s`)
+
+writeFileSync(__dirname + "/data.json", JSON.stringify(file, null, "  "));

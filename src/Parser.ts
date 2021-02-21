@@ -6,6 +6,8 @@ import StringInstruction, { StringInstructionOptions } from "./Instructions/Stri
 import { AddKey, ClassType, Dictionary, RemapToResolvable, Resolvable, Transform } from "./types";
 import Inflate from "./Transform/Inflate";
 import SubParserInstruction, { SubParserInstructionOptions } from "./Instructions/SubParser";
+import ArrayInstruction, { ArrayInstructionOptions } from "./Instructions/Array";
+import ndarray from "ndarray";
 
 export type InstructionInput<T extends {}> = { buffer: Buffer, offset: { value: number }, parser: Parser<T>, state: any };
 
@@ -13,6 +15,9 @@ class Parser<T extends {} = {}> {
     static Transform = {
         Inflate
     }
+
+    static choose<T>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>): Resolvable<T>;
+    static choose<T, TDef = T>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue: Resolvable<TDef>): Resolvable<T | TDef>;
     static choose<T, TDef = undefined>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue?: Resolvable<TDef> | undefined): Resolvable<T | TDef> {
         return (state) => {
             const rkey = this.resolve(key, state);
@@ -25,6 +30,16 @@ class Parser<T extends {} = {}> {
                 } else {
                     throw new Error(`choose("${rkey}" = ${value}) failed because there was no matching value in the given map, and no default value was provided.`);
                 }
+            } else {
+                throw new Error(`Key \`${rkey}\` doesn't exist. Only previously parsed keys can be used.`);
+            }
+        }
+    }
+    static pick<TKey extends string>(key: Resolvable<TKey>): Resolvable<any> {
+        return (state: any) => {
+            const rkey = this.resolve(key, state);
+            if (rkey && rkey in state) {
+                return state[rkey];
             } else {
                 throw new Error(`Key \`${rkey}\` doesn't exist. Only previously parsed keys can be used.`);
             }
@@ -78,7 +93,9 @@ class Parser<T extends {} = {}> {
     buffer<TKey extends string>(key: TKey, options: RemapToResolvable<BufferInstructionOptions>): Parser<AddKey<T, TKey, Buffer>> {
         return this.addAction(key, BufferInstruction, options) as Parser<AddKey<T, TKey, Buffer>>;
     }
-
+    array<TKey extends string>(key: TKey, options: RemapToResolvable<ArrayInstructionOptions>): Parser<AddKey<T, TKey, ndarray<number>>> {
+        return this.addAction(key, ArrayInstruction, options) as Parser<AddKey<T, TKey, ndarray<number>>>;
+    }
     move(offset: Resolvable<number>): Parser<T> {
         return this.addAction(undefined, MoveInstruction, { offset }) as Parser<T>;
     }

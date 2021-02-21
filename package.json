@@ -9,6 +9,7 @@
   "private": false,
   "devDependencies": {
     "@types/jest": "^26.0.20",
+    "@types/ndarray": "^1.0.8",
     "@types/node": "^14.14.31",
     "jest": "^26.6.3",
     "ts-node": "^9.1.1",
@@ -17,5 +18,8 @@
   "scripts": {
     "build": "tsc",
     "test": "jest"
+  },
+  "dependencies": {
+    "ndarray": "^1.0.19"
   }
 }
