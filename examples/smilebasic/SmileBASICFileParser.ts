@@ -1,6 +1,34 @@
 import { StringTrimType } from "../../src/Instructions/String";
 import Parser from "../../src/Parser";
 import { readFileSync } from "fs";
+import { performance } from "perf_hooks";
+
+enum SB3FileType {
+    Text = 0,
+    Data = 1,
+    Project = 2
+}
+
+enum SB4FileType {
+    Text = 0,
+    Data = 1,
+    Graphic = 2,
+    Project = 3,
+    Meta = 4
+}
+
+enum SB3TxtIcon {
+    TXT = 0,
+    PRG = 1
+}
+
+enum SB3DatIcon {
+    DAT = 0,
+    GRP = 2
+}
+
+const TextParser = new Parser()
+    .string("text");
 
 const SmileBASICFileParser = new Parser()
     .u16("version")
@@ -10,7 +38,7 @@ const SmileBASICFileParser = new Parser()
     .u16("zlib_compressed")
     .u16("icon", /*{
         "enum": Parser.choose("version", {
-            0x04: null
+            0x04: undefined
         }, Parser.choose("file_type", {
             [SB3FileType.Text]: SB3TxtIcon,
             [SB3FileType.Data]: SB3DatIcon
@@ -45,22 +73,23 @@ const SmileBASICFileParser = new Parser()
         size: 20,
         //assert: Parser.Transform.HashesMatch("sha1", Parser.range([0, -0x20]))
     })
-// .next("content", {
-//     data: "content_raw",
-//     parser: Parser.choice("version", {
-//         0x04: Parser.choice("file_type", {
-//             [SB4FileType.Text]: TextParser,
-//             [SB4FileType.Data]: SB4DataParser,
-//             [SB4FileType.Project]: SB4ProjectParser,
-//             [SB4FileType.Meta]: SB4MetaParser
-//         }, Parser.choice("file_type", {
-//             [SB3FileType.Text]: TextParser,
-//             [SB3FileType.Data]: SB4DataParser,
-//             [SB3FileType.Project]: SB4ProjectParser
-//         })
-//         )
-//     })
+    .next("content", {
+        data: "content_raw",
+        parser: Parser.choose("version", {
+            0x04: Parser.choose("file_type", {
+                [SB4FileType.Text]: TextParser,
+                // [SB4FileType.Data]: SB4DataParser,
+                // [SB4FileType.Project]: SB4ProjectParser,
+                // [SB4FileType.Meta]: SB4MetaParser
+            })
+        }, Parser.choose("file_type", {
+            [SB3FileType.Text]: TextParser,
+            // [SB3FileType.Data]: SB4DataParser,
+            // [SB3FileType.Project]: SB4ProjectParser
+        }))
+    });
+let start = performance.now()
 
 const file = SmileBASICFileParser.parse(readFileSync(__dirname + "/TMG_DOG"));
-
-console.log(file);
+let end = performance.now();
+console.log(`parse took ${end - start}s`)
