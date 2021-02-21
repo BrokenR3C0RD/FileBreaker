@@ -1,5 +1,4 @@
-import { InstructionInput } from "../Parser";
-import ParserInstruction from "../ParserInstruction";
+import { InstructionInput, ParserInstruction } from "../Parser";
 
 interface IntegerInstructionOptions {
     bits: number,

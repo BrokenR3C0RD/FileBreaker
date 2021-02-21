@@ -1,7 +1,8 @@
 import { StringTrimType } from "../../src/Instructions/String";
 import Parser from "../../src/Parser";
+import { readFileSync } from "fs";
 
-new Parser()
+const SmileBASICFileParser = new Parser()
     .u16("version")
     .u16("file_type", /*{
         "enum": Parser.choose("version", { 0x04: SB4FileType }, SB3FileType)
@@ -34,29 +35,32 @@ new Parser()
     .u32("author1_id")
     .u32("author2_id")
     .move(Parser.choose("version", { 0x04: 0x70 }, 0x50))
-    // .buffer("content_raw", {
-    //     //end: -0x20,
-    //     // process: Parser.choice("zlib_compressed", {
-    //     //     0x01: Parser.Transform.Inflate
-    //     // }, null)
-    //     size: Infinity
-    // })
-    // .buffer("footer", {
-    //     size: 0x20,
-    //     //assert: Parser.Transform.HashesMatch("sha1", Parser.range([0, -0x20]))
-    // })
-    // .parse("content", {
-    //     data: "content_raw",
-    //     parser: Parser.choice("version", {
-    //         0x04: Parser.choice("file_type", {
-    //             [SB4FileType.Text]: TextParser,
-    //             [SB4FileType.Data]: SB4DataParser,
-    //             [SB4FileType.Project]: SB4ProjectParser,
-    //             [SB4FileType.Meta]: SB4MetaParser
-    //         }, Parser.choice("file_type", {
-    //             [SB3FileType.Text]: TextParser,
-    //             [SB3FileType.Data]: SB4DataParser,
-    //             [SB3FileType.Project]: SB4ProjectParser
-    //         })
-    //         )
-    //     })
+    .buffer("content_raw", {
+        end: -20,
+        transform: Parser.choose("zlib_compressed", {
+            0x01: Parser.Transform.Inflate
+        }, undefined)
+    })
+    .buffer("footer", {
+        size: 20,
+        //assert: Parser.Transform.HashesMatch("sha1", Parser.range([0, -0x20]))
+    })
+// .next("content", {
+//     data: "content_raw",
+//     parser: Parser.choice("version", {
+//         0x04: Parser.choice("file_type", {
+//             [SB4FileType.Text]: TextParser,
+//             [SB4FileType.Data]: SB4DataParser,
+//             [SB4FileType.Project]: SB4ProjectParser,
+//             [SB4FileType.Meta]: SB4MetaParser
+//         }, Parser.choice("file_type", {
+//             [SB3FileType.Text]: TextParser,
+//             [SB3FileType.Data]: SB4DataParser,
+//             [SB3FileType.Project]: SB4ProjectParser
+//         })
+//         )
+//     })
+
+const file = SmileBASICFileParser.parse(readFileSync(__dirname + "/TMG_DOG"));
+
+console.log(file);

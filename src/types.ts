@@ -1,7 +1,6 @@
-import Parser from "./Parser";
-
 export type NotFunction<T> = T extends Function ? never : T;
 export type Transform<T> = (input: T) => T;
+export type Transformer<T> = { transform: Transform<T> };
 
 export type Resolvable<T> = NotFunction<T> | ((state: any) => T | Resolvable<T>);
 

@@ -1,42 +1,46 @@
+import ParserInstruction from "./ParserInstruction";
 import BufferInstruction, { BufferInstructionOptions } from "./Instructions/Buffer";
 import IntegerInstruction from "./Instructions/Integer";
 import MoveInstruction from "./Instructions/Move";
 import StringInstruction, { StringInstructionOptions } from "./Instructions/String";
-import ParserInstruction from "./ParserInstruction";
-import { AddKey, ClassType, Dictionary, NotFunction, RemapToResolvable, Resolvable, Transform } from "./types";
+import { AddKey, ClassType, Dictionary, RemapToResolvable, Resolvable, Transform } from "./types";
+import Inflate from "./Transform/Inflate";
 
 export type InstructionInput<T extends {}> = { buffer: Buffer, offset: { value: number }, parser: Parser<T>, state: any };
 
 class Parser<T extends {} = {}> {
+    static Transform = {
+        Inflate
+    }
+    static choose<T, TDef = undefined>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue?: Resolvable<TDef> | undefined): Resolvable<T | TDef> {
+        return (state) => {
+            const rkey = this.resolve(key, state);
+            if (rkey && rkey in state) {
+                const value = state[rkey];
+                if (value in results) {
+                    return this.resolve(results[value], state);
+                } else if (arguments.length === 3) {
+                    return this.resolve<TDef>(defaultValue as Resolvable<TDef>, state);
+                } else {
+                    throw new Error(`choose("${rkey}" = ${value}) failed because there was no matching value in the given map, and no default value was provided.`);
+                }
+            } else {
+                throw new Error(`Key \`${rkey}\` doesn't exist. Only previously parsed keys can be used.`);
+            }
+        }
+    }
+
     private instructions: ParserInstruction<any>[] = [];
 
     constructor() {
         // TODO: Actual constructing
     }
 
-    static resolve<T>(conditional: Resolvable<T>, state: any): T {
+    public static resolve<T>(conditional: Resolvable<T>, state: any): T {
         if (typeof conditional === "function")
             return this.resolve((conditional as Transform<T>)(state) as Resolvable<T>, state);
         else
             return conditional;
-    }
-
-    static choose<T>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue?: Resolvable<T>): Resolvable<T> {
-        return (state) => {
-            const rkey = this.resolve(key, state);
-            if (rkey in state) {
-                const value = state[rkey];
-                if (value in results) {
-                    return this.resolve(results[value], state);
-                } else if (defaultValue) {
-                    return this.resolve(defaultValue, state);
-                } else {
-                    throw new Error(`choose("${rkey}" = ${value}) failed because there was no matching value in the given map, and no default value was provided.`);
-                }
-            } else {
-                throw new Error(`Key \`${key}\` doesn't exist. Only previously parsed keys can be used.`);
-            }
-        }
     }
 
     public addAction<TKey extends string | undefined, TOptions, TReturn, TInstruction extends ParserInstruction<TKey, TOptions, TReturn>>(
@@ -83,10 +87,14 @@ class Parser<T extends {} = {}> {
         let offset = { value: 0 };
 
         for (const instruction of this.instructions) {
-            if (instruction.key) {
-                (state as any)[instruction.key] = instruction.run({ buffer: input, offset, parser: this, state });
-            } else {
-                instruction.run({ buffer: input, offset, parser: this, state })
+            try {
+                if (instruction.key) {
+                    (state as any)[instruction.key] = instruction.run({ buffer: input, offset, parser: this, state });
+                } else {
+                    instruction.run({ buffer: input, offset, parser: this, state })
+                }
+            } catch (e) {
+                throw new Error(`Error while parsing key \`${instruction.key}\` (offset: ${offset.value}): ${e.message}`);
             }
         }
 
@@ -95,3 +103,4 @@ class Parser<T extends {} = {}> {
 }
 
 export default Parser;
+export { ParserInstruction };

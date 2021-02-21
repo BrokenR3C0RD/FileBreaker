@@ -1,7 +1,9 @@
-import { Transform } from "../types";
-
+import { Transformer } from "../types";
 import { inflateSync } from "zlib";
 
-const Inflate: Transform<Buffer> = (input) => {
-    return inflateSync(input);
+const Inflate: Transformer<Buffer> =
+{
+    transform: (input) => inflateSync(input)
 }
+
+export default Inflate;

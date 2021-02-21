@@ -1,2 +1,1 @@
-import Parser from "./Parser";
-import ParserInstruction from "./ParserInstruction";
+import Parser, { ParserInstruction } from "./Parser";
