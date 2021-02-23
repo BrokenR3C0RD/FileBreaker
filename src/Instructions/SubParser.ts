@@ -1,4 +1,5 @@
 import Parser, { InstructionInput, ParserInstruction } from "../Parser";
+import { Resolvable } from "../types";
 
 export type SubParserInstructionOptions<T extends {}> = {
     parser: Parser<T>

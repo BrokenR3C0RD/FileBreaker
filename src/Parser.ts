@@ -16,6 +16,7 @@ class Parser<T extends {} = {}> {
         Inflate
     }
 
+    static choose<T>(key: Resolvable<string>, results: Dictionary<Parser<T>>): Resolvable<Parser<T>>;
     static choose<T>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>): Resolvable<T>;
     static choose<T, TDef = T>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue: Resolvable<TDef>): Resolvable<T | TDef>;
     static choose<T, TDef = undefined>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue?: Resolvable<TDef> | undefined): Resolvable<T | TDef> {

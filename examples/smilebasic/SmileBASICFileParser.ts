@@ -99,7 +99,7 @@ const SmileBASICFileParser = new Parser()
         size: 20,
         //assert: Parser.Transform.HashesMatch("sha1", Parser.range([0, -0x20]))
     })
-    .next<"content", ExtractParserType<typeof DataParser> | ExtractParserType<typeof TextParser>>("content", {
+    .next("content", {
         data: "content_raw",
         parser: Parser.choose("version", {
             0x04: Parser.choose<typeof TextParser | typeof DataParser>("file_type", {
@@ -112,7 +112,7 @@ const SmileBASICFileParser = new Parser()
             [SB4FileType.Data]: DataParser,
             [SB3FileType.Text]: TextParser,
             // [SB3FileType.Project]: SB4ProjectParser
-        }))
+        })) as typeof TextParser | typeof DataParser
     });
 let start = performance.now()
 

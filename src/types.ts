@@ -18,8 +18,8 @@ export type Id<T> = {} & { [P in keyof T]: T[P] }
 
 export type Values<T> = T extends { [k in keyof T]: infer U } ? U : never;
 
-export type Dictionary<T> = {
-    [k: string]: T | T
+export interface Dictionary<T> {
+    [k: string]: T
 }
 
 export type ExtractParserType<TParser extends Parser<any>> = TParser extends Parser<infer T> ? T : never;
