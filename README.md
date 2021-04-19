@@ -8,4 +8,4 @@ I, personally, have used too many awful "parsing" libraries that just aren't use
 
 Using the parser to encode files isn't the primary focus at the moment, but is planned for the future.
 
-### More to be written as I actually find the time to do it.
+## TODO: Write the rest of this README.md
