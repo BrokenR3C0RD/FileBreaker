@@ -3,29 +3,30 @@ import BufferInstruction, { BufferInstructionOptions } from "./Instructions/Buff
 import IntegerInstruction from "./Instructions/Integer";
 import MoveInstruction from "./Instructions/Move";
 import StringInstruction, { StringInstructionOptions } from "./Instructions/String";
-import { AddKey, ClassType, Dictionary, RemapToResolvable, Resolvable, Transform } from "./types";
+import { AddKey, ClassType, Dictionary, ExtractParserType, ParserValues, RemapToResolvable, Resolvable, Transform } from "./types";
 import Inflate from "./Transform/Inflate";
 import SubParserInstruction, { SubParserInstructionOptions } from "./Instructions/SubParser";
 import ArrayInstruction, { ArrayInstructionOptions } from "./Instructions/Array";
 import ndarray from "ndarray";
 
-export type InstructionInput<T extends {}> = { buffer: Buffer, offset: { value: number }, parser: Parser<T>, state: any };
+export type InstructionInput<T extends {}> = { buffer: Buffer, offset: { value: number; }, parser: Parser<T>, state: any; };
 
 class Parser<T extends {} = {}> {
     static Transform = {
         Inflate
-    }
+    };
 
-    static choose<T>(key: Resolvable<string>, results: Dictionary<Parser<T>>): Resolvable<Parser<T>>;
+    static choose<T extends Dictionary<Parser<any>>>(key: Resolvable<string>, results: T): Resolvable<Parser<ParserValues<T>>>;
+    static choose<T extends Dictionary<Parser<any>>, TDef extends Parser<any>>(key: Resolvable<string>, results: T, defaultValue: TDef): Resolvable<Parser<ParserValues<T> | ExtractParserType<TDef>>>;
     static choose<T>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>): Resolvable<T>;
     static choose<T, TDef = T>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue: Resolvable<TDef>): Resolvable<T | TDef>;
     static choose<T, TDef = undefined>(key: Resolvable<string>, results: Dictionary<Resolvable<T>>, defaultValue?: Resolvable<TDef> | undefined): Resolvable<T | TDef> {
         return (state) => {
             const rkey = this.resolve(key, state);
             if (rkey && rkey in state) {
-                const value = state[rkey];
+                const value = state[ rkey ];
                 if (value in results) {
-                    return this.resolve(results[value], state);
+                    return this.resolve(results[ value ], state);
                 } else if (arguments.length === 3) {
                     return this.resolve<TDef>(defaultValue as Resolvable<TDef>, state);
                 } else {
@@ -34,17 +35,17 @@ class Parser<T extends {} = {}> {
             } else {
                 throw new Error(`Key \`${rkey}\` doesn't exist. Only previously parsed keys can be used.`);
             }
-        }
+        };
     }
     static pick<TKey extends string>(key: Resolvable<TKey>): Resolvable<any> {
         return (state: any) => {
             const rkey = this.resolve(key, state);
             if (rkey && rkey in state) {
-                return state[rkey];
+                return state[ rkey ];
             } else {
                 throw new Error(`Key \`${rkey}\` doesn't exist. Only previously parsed keys can be used.`);
             }
-        }
+        };
     }
 
     private instructions: ParserInstruction<any>[] = [];
@@ -62,7 +63,7 @@ class Parser<T extends {} = {}> {
 
     public addAction<TKey extends string | undefined, TOptions, TReturn, TInstruction extends ParserInstruction<TKey, TOptions, TReturn>>(
         key: TKey,
-        instruction: ClassType<TInstruction, [key: TKey, options: TOptions]>,
+        instruction: ClassType<TInstruction, [ key: TKey, options: TOptions ]>,
         options: TOptions
     ): TKey extends string ? Parser<AddKey<T, TKey, TReturn>> : Parser<T> {
         this.instructions.push(new instruction(key, options));
@@ -101,27 +102,40 @@ class Parser<T extends {} = {}> {
         return this.addAction(undefined, MoveInstruction, { offset }) as Parser<T>;
     }
 
-    next<TKey extends string, TSub extends {}>(key: TKey, options: RemapToResolvable<SubParserInstructionOptions<TSub>>): Parser<AddKey<T, TKey, TSub>> {
-        return this.addAction(key, SubParserInstruction, options) as Parser<AddKey<T, TKey, TSub>>;
+    next<TKey extends string, TSub extends Parser<any>>(key: TKey, subParser: Resolvable<TSub>): Parser<AddKey<T, TKey, ExtractParserType<TSub>>>;
+    next<TKey extends string, TSub extends Parser<any>>(key: TKey, target: Resolvable<string | undefined>, subParser: Resolvable<TSub>): Parser<AddKey<T, TKey, ExtractParserType<TSub>>>;
+    next<TKey extends string, TSub extends Parser<any>>(key: TKey, target: Resolvable<TSub | string | undefined>, subParser?: Resolvable<TSub>): Parser<AddKey<T, TKey, ExtractParserType<TSub>>> {
+        let parser = (subParser ?? target) as Resolvable<TSub>;
+        let data = (subParser ? target : null) as Resolvable<string> | undefined;
+
+        return this.addAction(key, SubParserInstruction, { data, parser } as RemapToResolvable<SubParserInstructionOptions<TSub>>) as unknown as Parser<AddKey<T, TKey, ExtractParserType<TSub>>>;
     }
 
-    parse(input: Buffer, parentState?: any): T & { _offset: { value: number } } {
+    _parseWithOffset(input: Buffer, parentState?: any): T & { _offset: { value: number; }; } {
         const state: T = {} as T;
         let offset = { value: 0 };
 
         for (const instruction of this.instructions) {
             try {
                 if (instruction.key) {
-                    (state as any)[instruction.key] = instruction.run({ buffer: input, offset, parser: this, state: { ...parentState, ...state } });
+                    (state as any)[ instruction.key ] = instruction.run({ buffer: input, offset, parser: this, state: { ...parentState, ...state } });
                 } else {
-                    instruction.run({ buffer: input, offset, parser: this, state })
+                    instruction.run({ buffer: input, offset, parser: this, state });
                 }
-            } catch (e) {
+            } catch (e: any) {
                 throw new Error(`Error while parsing key \`${instruction.key}\` (offset: ${offset.value}): ${e.message}`);
             }
         }
 
         return { ...state, _offset: offset };
+    }
+
+    parse(input: Buffer): T {
+        let result = this._parseWithOffset(input);
+        let result2 = { ...result } as T & { _offset?: any; };
+        delete result2[ "_offset" ];
+
+        return result2 as T;
     }
 }
 

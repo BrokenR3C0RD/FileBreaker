@@ -42,16 +42,16 @@ const DataParser = new Parser()
     .u16("data_type")
     .u16("dim_count")
     .array("dimensions", {
-        dimensions: (state) => [state["dim_count"]],
+        dimensions: (state) => [ state[ "dim_count" ] ],
         type: "u32"
     })
     .move(0x1C)
     .array("data", {
         dimensions: Parser.pick("dimensions"),
         type: Parser.choose("data_type", {
-            [DataType.Color]: "u16",
-            [DataType.Int32]: "i32",
-            [DataType.Float64]: "f64"
+            [ DataType.Color ]: "u16",
+            [ DataType.Int32 ]: "i32",
+            [ DataType.Float64 ]: "f64"
         })
     });
 
@@ -99,25 +99,23 @@ const SmileBASICFileParser = new Parser()
         size: 20,
         //assert: Parser.Transform.HashesMatch("sha1", Parser.range([0, -0x20]))
     })
-    .next("content", {
-        data: "content_raw",
-        parser: Parser.choose("version", {
-            0x04: Parser.choose<typeof TextParser | typeof DataParser>("file_type", {
-                [SB4FileType.Data]: DataParser,
-                [SB4FileType.Text]: TextParser,
-                // [SB4FileType.Project]: SB4ProjectParser,
-                // [SB4FileType.Meta]: SB4MetaParser
-            })
-        }, Parser.choose<typeof TextParser | typeof DataParser>("file_type", {
-            [SB4FileType.Data]: DataParser,
-            [SB3FileType.Text]: TextParser,
-            // [SB3FileType.Project]: SB4ProjectParser
-        })) as typeof TextParser | typeof DataParser
-    });
-let start = performance.now()
+    .next("content", "content_raw", Parser.choose("version", {
+        0x04: Parser.choose("file_type", {
+            [ SB4FileType.Data ]: DataParser,
+            [ SB4FileType.Text ]: TextParser,
+            // [SB4FileType.Project]: SB4ProjectParser,
+            // [SB4FileType.Meta]: SB4MetaParser
+        })
+    }, Parser.choose<typeof TextParser | typeof DataParser>("file_type", {
+        [ SB4FileType.Data ]: DataParser,
+        [ SB3FileType.Text ]: TextParser,
+        // [SB3FileType.Project]: SB4ProjectParser
+    })));
+
+let start = performance.now();
 
 const file = SmileBASICFileParser.parse(readFileSync(__dirname + "/TMG_DOG"));
 let end = performance.now();
-console.log(`parse took ${end - start}s`)
+console.log(`parse took ${end - start}s`);
 
 writeFileSync(__dirname + "/data.json", JSON.stringify(file, null, "  "));

@@ -1,5 +1,5 @@
 import Parser, { InstructionInput } from "./Parser";
-import { RemapToResolvable } from "./types";
+import { ExtractResolvable, RemapToResolvable, RemapToResolved, Resolvable } from "./types";
 
 abstract class ParserInstruction<TKey extends string | undefined = string, TOptions extends {} = any, TReturn = unknown> {
     constructor(
@@ -9,12 +9,14 @@ abstract class ParserInstruction<TKey extends string | undefined = string, TOpti
 
     }
 
-    protected resolvedOptions: Partial<TOptions> = {};
+    protected resolvedOptions: Partial<RemapToResolved<TOptions>> = {};
 
     protected resolveOptions(state: any) {
         for (let key in this.options) {
-            const value = Parser.resolve(this.options[key], state);
-            this.resolvedOptions[key] = value;
+            let option = this.options[ key ] as Resolvable<ExtractResolvable<TOptions[ typeof key ]>>;
+
+            const value = Parser.resolve(option, state);
+            this.resolvedOptions[ key ] = value as ExtractResolvable<TOptions[typeof key]>;
         }
     }
 
