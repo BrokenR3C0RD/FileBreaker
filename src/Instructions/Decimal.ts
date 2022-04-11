@@ -1,7 +1,9 @@
 import { InstructionInput, ParserInstruction } from "../Parser";
+import { Endian } from "../types";
 
 interface DecimalInstructionOptions {
     bits: number,
+    endian?: Endian
 }
 
 class DecimalInstruction<TKey extends string = ""> extends ParserInstruction<TKey, DecimalInstructionOptions, number>{
@@ -16,10 +18,10 @@ class DecimalInstruction<TKey extends string = ""> extends ParserInstruction<TKe
 
             switch (bits) {
                 case 32:
-                    res = buffer.readFloatLE(bits);
+                    res = buffer.readFloatLE(offset.value);
                     break;
                 case 64:
-                    res = buffer.readDoubleLE(bits);
+                    res = buffer.readDoubleLE(offset.value);
                     break;
                 default:
                     throw new TypeError(`decimal bit width ${bits} not implemented`)

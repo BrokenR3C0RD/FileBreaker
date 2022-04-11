@@ -1,4 +1,4 @@
-import Parser from "./Parser";
+import type Parser from "./Parser";
 
 export type NotFunction<T> = T extends Function ? never : T;
 export type Transform<T> = (input: T) => T;
@@ -42,3 +42,8 @@ export type ResolvableParserType<TParser extends Dictionary<Parser<any>>, TState
     keyof TState extends TKey
     ? ResolvableParserValues<TParser>
     : never;
+
+export enum Endian {
+    Little,
+    Big
+}
